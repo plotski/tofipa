@@ -288,24 +288,10 @@ class _Combinator(collections.abc.Iterable):
             for key, items in things.items()
         }
         self._keys = tuple(self._things)
-        self._indexes = {key: 0 for key in self._keys}
-
-    def __len__(self):
-        # Product of numbers of candidates
-        length = 1
-        for items in self._things.values():
-            length *= len(items)
-        return length
-
-    def _advance(self):
-        # Increase the rightmost index or reset it to zero
-        # and increase the next index on the left
-        for key in reversed(self._keys):
-            if self._indexes[key] < len(self._things[key]) - 1:
-                self._indexes[key] += 1
-                break
-            else:
-                self._indexes[key] = 0
+        self._indexes = {
+            key: 0 if len(self._things[key]) > 0 else -1
+            for key in self._keys
+        }
 
     @property
     def _pairs(self):
@@ -318,8 +304,24 @@ class _Combinator(collections.abc.Iterable):
         return pairs
 
     def __iter__(self):
-        combinations = []
-        for _ in range(len(self)):
-            combinations.append(self._pairs)
+        # Take the first step so the while loop below doesn't immediately end.
+        # Do not take the first step if any list of items is empty.
+        if all(index >= 0 for index in self._indexes.values()):
+            yield self._pairs
             self._advance()
-        return iter(combinations)
+
+        # Yield over pairs until all indexes are 0 again.
+        # Don't loop at all if any list of items is empty.
+        while any(index > 0 for index in self._indexes.values()):
+            yield self._pairs
+            self._advance()
+
+    def _advance(self):
+        # Increase the rightmost index or reset it to zero
+        # and increase the next index on the left
+        for key in reversed(self._keys):
+            if self._indexes[key] < len(self._things[key]) - 1:
+                self._indexes[key] += 1
+                break
+            else:
+                self._indexes[key] = 0
