@@ -65,7 +65,7 @@ class FindDownloadLocation:
             for file, candidate in paths.items():
                 if file not in links_to_create:
                     if self._verify_file(file, location=candidate['temporary_location']):
-                        # Use download location of first matching file
+                        # Use download location of first matching file.
                         if download_location is None:
                             _debug('Setting download location: %r', candidate['location'])
                             download_location = candidate['location']
@@ -81,7 +81,7 @@ class FindDownloadLocation:
                 _debug('All files found: %r', tuple(links_to_create))
                 break
 
-        # Create final links to best matching files
+        # Create final links to best matching files.
         for source, target in links_to_create.values():
             self._create_hardlink(source, target)
 
@@ -94,16 +94,18 @@ class FindDownloadLocation:
 
         for pairs in _Combinator(candidates):
             with self._temporary_directory as location:
-                # Create temporary links as they are expected by the torrent
+                # Create temporary links as they are expected by the torrent.
                 for file, candidate in pairs:
                     candidate['temporary_location'] = location
                     source = os.path.abspath(candidate['filepath'])
                     target = os.path.join(location, file)
                     self._create_symlink(source, target)
 
+                # Map torrent file path to other relevant information that is
+                # needed for matching.
                 yield {file: candidate for file, candidate in pairs}
 
-            # Ensure temporary links are removed
+            # Ensure temporary links are removed.
             assert not os.path.exists(location), location
 
     def _verify_file(self, file, location):
@@ -111,7 +113,7 @@ class FindDownloadLocation:
         content_path = os.path.join(location, self._torrent.name)
         with torf.TorrentFileStream(self._torrent, content_path=content_path) as tfs:
             # Don't check the first and the last piece of a file as they likely
-            # overlap with another file that might be either invalid or missing
+            # overlap with another file that might be either invalid or missing.
             file_piece_indexes = tfs.get_absolute_piece_indexes(file, (1, -2))
             _debug('    Verifying pieces: %r', file_piece_indexes)
             for piece_index in file_piece_indexes:
@@ -156,7 +158,7 @@ class FindDownloadLocation:
                         'similarity': get_similarity(filepath_rel),
                     })
 
-        # Sort size-matching files by file path similarity
+        # Sort size-matching files by file path similarity.
         for file in candidates:
             candidates[file].sort(key=lambda c: c['similarity'], reverse=True)
 
@@ -164,7 +166,7 @@ class FindDownloadLocation:
             for cand in candidates[file]:
                 _debug(' * %s [%.2f]', cand['filepath'], cand['similarity'])
 
-            # Keep only the three best matches
+            # Keep only the three best matches.
             del candidates[file][3:]
 
         return dict(candidates)
@@ -189,7 +191,8 @@ class FindDownloadLocation:
 
     @functools.lru_cache(maxsize=None)
     def _is_size_match(self, torrentfile, filepath):
-        # Return whether a file in a torrent and an existing file are the same size
+        # Return whether a file in a torrent and an existing file are the same
+        # size.
         return torrentfile.size == self._get_file_size(filepath)
 
     def _get_file_size(self, filepath):
@@ -205,7 +208,7 @@ class FindDownloadLocation:
         return self._create_link(self._hardlink_or_symlink, source, target)
 
     def _hardlink_or_symlink(self, source, target):
-        # Try hard link and default to symlink
+        # Try hard link and default to symlink.
         try:
             os.link(source, target)
         except OSError as e:
@@ -221,7 +224,7 @@ class FindDownloadLocation:
 
     def _create_link(self, create_link_function, source, target):
         if not os.path.exists(target):
-            # Create parent directory if it doesn't exist
+            # Create parent directory if it doesn't exist.
             target_parent = os.path.dirname(target)
             try:
                 os.makedirs(target_parent, exist_ok=True)
@@ -229,7 +232,7 @@ class FindDownloadLocation:
                 msg = e.strerror if e.strerror else e
                 raise FindError(f'Failed to create directory {target_parent}: {msg}')
             else:
-                # Create link
+                # Create link.
                 _debug(f'{create_link_function.__qualname__}({source!r}, {target!r})')
                 try:
                     create_link_function(source, target)
@@ -241,13 +244,13 @@ class FindDownloadLocation:
 
     @property
     def _temporary_directory(self):
-        # Avoid illegal characters
+        # Avoid illegal characters.
         name = ''.join(
             c if c in self._allowed_filename_characters else '_'
             for c in self._torrent.name
         )
         # TemporaryDirectory is a context manager that automatically deletes the
-        # directory when leaving the context
+        # directory when leaving the context.
         return tempfile.TemporaryDirectory(prefix=f'{__project_name__}.{name}.')
 
     _allowed_filename_characters = (
@@ -295,8 +298,8 @@ class _Combinator(collections.abc.Iterable):
 
     @property
     def _pairs(self):
-        # List of (key, list item) tuples for each key
-        # using current list indexes
+        # List of (key, list item) tuples for each key using current list
+        # indexes.
         pairs = []
         for key in self._keys:
             item = self._things[key][self._indexes[key]]
@@ -304,21 +307,22 @@ class _Combinator(collections.abc.Iterable):
         return pairs
 
     def __iter__(self):
-        # Take the first step so the while loop below doesn't immediately end.
-        # Do not take the first step if any list of items is empty.
+        # Take the first step so the while loop below doesn't immediately end
+        # because all indexes are zero.
+        # Do not take the first step if any list is empty.
         if all(index >= 0 for index in self._indexes.values()):
             yield self._pairs
             self._advance()
 
         # Yield over pairs until all indexes are 0 again.
-        # Don't loop at all if any list of items is empty.
+        # Don't loop at all if any list is empty.
         while any(index > 0 for index in self._indexes.values()):
             yield self._pairs
             self._advance()
 
     def _advance(self):
-        # Increase the rightmost index or reset it to zero
-        # and increase the next index on the left
+        # Increase the rightmost index or reset it to zero and increase the next
+        # index on the left.
         for key in reversed(self._keys):
             if self._indexes[key] < len(self._things[key]) - 1:
                 self._indexes[key] += 1
