@@ -282,26 +282,26 @@ class _Combinator(collections.abc.Iterable):
     >>> ]
     """
 
-    def __init__(self, candidates):
-        self._candidates = {
-            key: tuple(cands)
-            for key, cands in candidates.items()
+    def __init__(self, things):
+        self._things = {
+            key: tuple(items)
+            for key, items in things.items()
         }
-        self._keys = tuple(self._candidates)
+        self._keys = tuple(self._things)
         self._indexes = {key: 0 for key in self._keys}
 
     def __len__(self):
         # Product of numbers of candidates
         length = 1
-        for cands in self._candidates.values():
-            length *= len(cands)
+        for items in self._things.values():
+            length *= len(items)
         return length
 
     def _advance(self):
         # Increase the rightmost index or reset it to zero
         # and increase the next index on the left
         for key in reversed(self._keys):
-            if self._indexes[key] < len(self._candidates[key]) - 1:
+            if self._indexes[key] < len(self._things[key]) - 1:
                 self._indexes[key] += 1
                 break
             else:
@@ -313,8 +313,8 @@ class _Combinator(collections.abc.Iterable):
         # using current list indexes
         pairs = []
         for key in self._keys:
-            list_item = self._candidates[key][self._indexes[key]]
-            pairs.append((key, list_item))
+            item = self._things[key][self._indexes[key]]
+            pairs.append((key, item))
         return pairs
 
     def __iter__(self):
