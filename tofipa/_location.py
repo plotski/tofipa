@@ -8,11 +8,9 @@ import tempfile
 
 import torf
 
+from . import __project_name__, _debug
+from ._combinator import Combinator
 from ._errors import FindError
-
-import logging  # isort:skip
-from . import __project_name__  # isort:skip
-_debug = logging.getLogger(__project_name__).debug
 
 
 class FindDownloadLocation:
@@ -35,6 +33,7 @@ class FindDownloadLocation:
         if len(self._locations) < 1:
             raise RuntimeError('You must provide at least one potential download location')
         self._default_location = str(default) if default else None
+        self._found_files = set()
 
     def find(self):
         try:
@@ -72,6 +71,14 @@ class FindDownloadLocation:
 
                         _debug('  %s: Using %r', file, candidate['filepath'])
                         links_to_create[file] = (candidate['filepath'], os.path.join(download_location, file))
+
+                        # Maintain a list of files we already found.
+                        # _each_set_of_linked_candidates() uses that list to
+                        # skip new combinations of files that are now
+                        # irrelevant.
+                        _debug('  Found files: %r', self._found_files)
+                        self._found_files.add(file)
+
                     else:
                         _debug('  %s: Not using %r', file, candidate['filepath'])
                 else:
@@ -92,7 +99,8 @@ class FindDownloadLocation:
         for file, cands in sorted(candidates.items()):
             _debug('  * %s -> %s', [c['filepath'] for c in cands], file)
 
-        for pairs in _Combinator(candidates):
+        combinator = Combinator(candidates)
+        for pairs in combinator:
             with self._temporary_directory as location:
                 # Create temporary links as they are expected by the torrent.
                 for file, candidate in pairs:
@@ -104,6 +112,10 @@ class FindDownloadLocation:
                 # Map torrent file path to other relevant information that is
                 # needed for matching.
                 yield {file: candidate for file, candidate in pairs}
+
+                # Do not iterate over new combinations of files we already
+                # found.
+                combinator.lock(*sorted(self._found_files))
 
             # Ensure temporary links are removed.
             assert not os.path.exists(location), location
@@ -258,74 +270,3 @@ class FindDownloadLocation:
         + string.digits
         + " ',.-"
     )
-
-
-class _Combinator(collections.abc.Iterable):
-    """
-    Take a dictionary that maps keys to lists and turn it into a list of all
-    possible ``(key, list item)`` combinations
-
-    Example:
-
-    >>> things = {
-    >>>     'a': ['a1', 'a2'],
-    >>>     'b': ['b1'],
-    >>>     'c': ['c1', 'c2', 'c3', 'c4'],
-    >>> }
-    >>> list(_Combinator(things))
-    >>> [
-    >>>     [('a', 'a1'), ('b', 'b1'), ('c', 'c1')],
-    >>>     [('a', 'a1'), ('b', 'b1'), ('c', 'c2')],
-    >>>     [('a', 'a1'), ('b', 'b1'), ('c', 'c3')],
-    >>>     [('a', 'a1'), ('b', 'b1'), ('c', 'c4')],
-    >>>     [('a', 'a2'), ('b', 'b1'), ('c', 'c1')],
-    >>>     [('a', 'a2'), ('b', 'b1'), ('c', 'c2')],
-    >>>     [('a', 'a2'), ('b', 'b1'), ('c', 'c3')],
-    >>>     [('a', 'a2'), ('b', 'b1'), ('c', 'c4')],
-    >>> ]
-    """
-
-    def __init__(self, things):
-        self._things = {
-            key: tuple(items)
-            for key, items in things.items()
-        }
-        self._keys = tuple(self._things)
-        self._indexes = {
-            key: 0 if len(self._things[key]) > 0 else -1
-            for key in self._keys
-        }
-
-    @property
-    def _pairs(self):
-        # List of (key, list item) tuples for each key using current list
-        # indexes.
-        pairs = []
-        for key in self._keys:
-            item = self._things[key][self._indexes[key]]
-            pairs.append((key, item))
-        return pairs
-
-    def __iter__(self):
-        # Take the first step so the while loop below doesn't immediately end
-        # because all indexes are zero.
-        # Do not take the first step if any list is empty.
-        if all(index >= 0 for index in self._indexes.values()):
-            yield self._pairs
-            self._advance()
-
-        # Yield over pairs until all indexes are 0 again.
-        # Don't loop at all if any list is empty.
-        while any(index > 0 for index in self._indexes.values()):
-            yield self._pairs
-            self._advance()
-
-    def _advance(self):
-        # Increase the rightmost index or reset it to zero and increase the next
-        # index on the left.
-        for key in reversed(self._keys):
-            if self._indexes[key] < len(self._things[key]) - 1:
-                self._indexes[key] += 1
-                break
-            else:
-                self._indexes[key] = 0

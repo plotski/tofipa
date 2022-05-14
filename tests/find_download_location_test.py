@@ -10,7 +10,7 @@ import pytest
 import torf
 
 from tofipa import FindError, __project_name__
-from tofipa._location import FindDownloadLocation, _Combinator
+from tofipa._location import FindDownloadLocation
 
 
 class MockFile(str):
@@ -617,59 +617,3 @@ def test_FindDownloadLocation_temporary_directory(mocker):
     assert TemporaryDirectory_mock.call_args_list == [
         call(prefix=f"{__project_name__}.This _ _ That's It 1234."),
     ]
-
-
-@pytest.mark.parametrize(
-    argnames='input, exp_output',
-    argvalues=(
-        ({'a': [], 'b': [], 'c': []}, []),
-        ({'a': [], 'b': [], 'c': ['c1']}, []),
-        ({'a': [], 'b': ['b1'], 'c': []}, []),
-        ({'a': ['a1'], 'b': [], 'c': []}, []),
-        ({'a': [], 'b': ['b1'], 'c': ['c1']}, []),
-        ({'a': ['a1'], 'b': ['b1'], 'c': []}, []),
-        ({'a': ['a1'], 'b': [], 'c': ['c1']}, []),
-        ({'a': ['a1'], 'b': ['b1'], 'c': ['c1']}, [[('a', 'a1'), ('b', 'b1'), ('c', 'c1')]]),
-        (
-            {'a': ['a1', 'a2'], 'b': ['b1', 'b2'], 'c': ['c1', 'c2']},
-            [
-                [('a', 'a1'), ('b', 'b1'), ('c', 'c1')],
-                [('a', 'a1'), ('b', 'b1'), ('c', 'c2')],
-                [('a', 'a1'), ('b', 'b2'), ('c', 'c1')],
-                [('a', 'a1'), ('b', 'b2'), ('c', 'c2')],
-                [('a', 'a2'), ('b', 'b1'), ('c', 'c1')],
-                [('a', 'a2'), ('b', 'b1'), ('c', 'c2')],
-                [('a', 'a2'), ('b', 'b2'), ('c', 'c1')],
-                [('a', 'a2'), ('b', 'b2'), ('c', 'c2')],
-            ],
-        ),
-        (
-            {'a': ['a1', 'a2', 'a3'], 'b': ['b1'], 'c': ['c1', 'c2']},
-            [
-                [('a', 'a1'), ('b', 'b1'), ('c', 'c1')],
-                [('a', 'a1'), ('b', 'b1'), ('c', 'c2')],
-                [('a', 'a2'), ('b', 'b1'), ('c', 'c1')],
-                [('a', 'a2'), ('b', 'b1'), ('c', 'c2')],
-                [('a', 'a3'), ('b', 'b1'), ('c', 'c1')],
-                [('a', 'a3'), ('b', 'b1'), ('c', 'c2')],
-            ],
-        ),
-        (
-            {'a': ['a1'], 'b': ['b1', 'b2', 'b3'], 'c': ['c1', 'c2', 'c3']},
-            [
-                [('a', 'a1'), ('b', 'b1'), ('c', 'c1')],
-                [('a', 'a1'), ('b', 'b1'), ('c', 'c2')],
-                [('a', 'a1'), ('b', 'b1'), ('c', 'c3')],
-                [('a', 'a1'), ('b', 'b2'), ('c', 'c1')],
-                [('a', 'a1'), ('b', 'b2'), ('c', 'c2')],
-                [('a', 'a1'), ('b', 'b2'), ('c', 'c3')],
-                [('a', 'a1'), ('b', 'b3'), ('c', 'c1')],
-                [('a', 'a1'), ('b', 'b3'), ('c', 'c2')],
-                [('a', 'a1'), ('b', 'b3'), ('c', 'c3')],
-            ],
-        ),
-    ),
-)
-def test_Combinator(input, exp_output):
-    output = list(_Combinator(input))
-    assert output == exp_output
