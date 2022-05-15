@@ -325,14 +325,16 @@ def test_FindDownloadLocation_each_set_of_linked_candidates(mocker, tmp_path):
 def test_FindDownloadLocation_verify_file(piece_indexes, verify_piece_return_values, exp_verify_piece_calls,
                                           exp_return_value, mocker, tmp_path):
     fdl = FindDownloadLocation(torrent='mock.torrent', locations=('a', 'b', 'c'))
-    mocker.patch.object(fdl, '_torrent')
+    mock_torrent = mocker.patch.object(fdl, '_torrent')
+    mock_torrent.configure_mock(name='My Torrent')
     TorrentFileStream_mock = mocker.patch('torf.TorrentFileStream')
     tfs_mock = TorrentFileStream_mock.return_value.__enter__.return_value
     tfs_mock.get_absolute_piece_indexes.return_value = piece_indexes
     tfs_mock.verify_piece.side_effect = verify_piece_return_values
     mock_location = 'path/to/location'
 
-    assert fdl._verify_file('mock/file/path', mock_location) is exp_return_value
+    return_value = fdl._verify_file('mock/file/path', mock_location)
+    assert return_value is exp_return_value
 
     exp_content_path = os.path.join(mock_location, fdl._torrent.name)
     assert TorrentFileStream_mock.call_args_list == [call(fdl._torrent, content_path=exp_content_path)]
@@ -497,7 +499,8 @@ def test_FindDownloadLocation_get_file_size(is_dir, getsize_result, exp_return_v
         getsize_mock = mocker.patch('os.path.getsize', side_effect=getsize_result)
     else:
         getsize_mock = mocker.patch('os.path.getsize', return_value=getsize_result)
-    assert fdl._get_file_size('path/to/foo') is exp_return_value
+    return_value = fdl._get_file_size('path/to/foo')
+    assert return_value == exp_return_value
     assert isdir_mock.call_args_list == [call('path/to/foo')]
     if is_dir:
         assert getsize_mock.call_args_list == []
