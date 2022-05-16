@@ -153,3 +153,9 @@ def test_Combinator_does_not_change_locked_combinations(input, pre_iter_locks, m
         print('  ', pairs)
 
     assert output == exp_output
+
+
+def test_Combinator_does_not_lock_unknown_key():
+    combinator = Combinator({'a': ['a1'], 'b': ['b1'], 'c': ['c1']})
+    with pytest.raises(RuntimeError, match=rf'Cannot exclude unknown key: {repr("bb")}'):
+        combinator.lock('a', 'b', 'bb', 'c')
