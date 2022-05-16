@@ -75,4 +75,4 @@ def cli(args=None):
     except _errors.FindError as e:
         sys.stderr.write(f'{e}\n')
     else:
-        sys.stdout.write(download_location)
+        sys.stdout.write(f'{download_location}\n')
