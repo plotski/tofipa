@@ -35,6 +35,7 @@ setuptools.setup(
     python_requires='>=3.7',
     install_requires=[
         'torf==4.*',
+        'pyxdg==0.*',
     ],
     entry_points={'console_scripts': ['tofipa = tofipa:cli']},
 )
