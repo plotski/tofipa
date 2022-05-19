@@ -44,7 +44,6 @@ def test_LocationsFile_read_reads_filepath(tmp_path, mocker):
     assert locations == [
         f'parsed {filepath}@2: /path/one',
         f'parsed {filepath}@3: /path/two',
-        f'parsed {filepath}@4: ',
         f'parsed {filepath}@6: path/t h r e e',
     ]
 

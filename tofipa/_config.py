@@ -39,7 +39,7 @@ class LocationsFile(list):
             with open(filepath, 'r') as f:
                 for line_number, line in enumerate(f.readlines(), start=1):
                     line = line.strip()
-                    if not line.startswith('#'):
+                    if line and not line.startswith('#'):
                         locations.extend(self._parse_line(line, filepath, line_number))
         except OSError as e:
             # Ignore missing default config file path
