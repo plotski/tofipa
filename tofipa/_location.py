@@ -29,7 +29,10 @@ class FindDownloadLocation:
     def __init__(self, *, torrent, locations, default=None):
         self._torrent_filepath = str(torrent)
         self._torrent = None
-        self._locations = tuple(str(loc) for loc in locations)
+        # Ugly hack to deduplicate locations while preserving order
+        self._locations = tuple(
+            dict.fromkeys(str(loc) for loc in locations)
+        )
         if len(self._locations) < 1:
             raise RuntimeError('You must provide at least one potential download location')
         self._default_location = str(default) if default else None

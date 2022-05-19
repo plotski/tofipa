@@ -35,7 +35,8 @@ def test_FindDownloadLocation_init_torrent_argument(torrent, exp_torrent_filepat
     argnames='locations, exp_exception, exp_locations',
     argvalues=(
         ((), RuntimeError('You must provide at least one potential download location'), ()),
-        (['foo', 123], None, ('foo', '123')),
+        # Locations are deduplicated after they're converted to str
+        (['foo', 123, 'BAR', '123'], None, ('foo', '123', 'BAR')),
     ),
 )
 def test_FindDownloadLocation_init_locations_argument(locations, exp_exception, exp_locations):
