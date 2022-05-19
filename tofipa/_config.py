@@ -1,3 +1,4 @@
+import collections
 import errno
 import os
 import re
@@ -10,7 +11,7 @@ DEFAULT_LOCATIONS_FILEPATH = os.path.join(xdg_config_home, __project_name__, 'lo
 DEFAULT_CLIENTS_FILEPATH = os.path.join(xdg_config_home, __project_name__, 'clients')
 
 
-class LocationsFile(list):
+class LocationsFile(collections.abc.MutableSequence):
     """
     :class:`list` subclass that reads directory paths from `filepath`
 
@@ -23,14 +24,14 @@ class LocationsFile(list):
 
     def __init__(self, filepath):
         self._filepath = filepath
-        super().__init__(self._read(filepath))
+        self._list = self._read(filepath)
 
     @property
     def filepath(self):
         return self._filepath
 
     def __repr__(self):
-        return f'<{type(self).__name__} {self._filepath!r} {list(self)!r}>'
+        return f'<{type(self).__name__} {self._filepath!r} {self._list!r}>'
 
     def _read(self, filepath):
         locations = []
@@ -112,3 +113,40 @@ class LocationsFile(list):
                     string = string.replace(f'${env_var_name}', env_var_value)
 
         return string
+
+    def __setitem__(self, index, value):
+        if not isinstance(value, str) and isinstance(value, collections.abc.Iterable):
+            normalized_paths = []
+            for item in value:
+                for normalized_path in self._parse_line(item, None, None):
+                    normalized_paths.append(normalized_path)
+            self._list[index] = normalized_paths
+        else:
+            normalized_paths = self._parse_line(value, None, None)[0]
+            self._list[index] = normalized_paths
+
+    def insert(self, index, value):
+        if not isinstance(value, str) and isinstance(value, collections.abc.Iterable):
+            normalized_paths = []
+            for item in value:
+                for normalized_path in self._parse_line(item, None, None):
+                    normalized_paths.append(normalized_path)
+            self._list[index:index] = normalized_paths
+        else:
+            normalized_paths = self._parse_line(value, None, None)
+            self._list.insert(index, normalized_paths[0])
+
+    def __getitem__(self, index):
+        return self._list[index]
+
+    def __delitem__(self, index):
+        del self._list[index]
+
+    def __len__(self):
+        return len(self._list)
+
+    def __eq__(self, other):
+        if isinstance(other, collections.abc.Sequence):
+            return self._list == list(other)
+        else:
+            return NotImplemented

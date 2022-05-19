@@ -197,3 +197,35 @@ def test_LocationsFile_resolve_env_vars_handles_empty_environment_variable(mocke
 
     with pytest.raises(_errors.ConfigError, match=rf'^{filepath}@123: Empty environment variable: \$baz$'):
         locations._resolve_env_vars('Foo/$FOO/foo/foo/$bar/$baz', filepath, 123)
+
+
+def test_LocationsFile_normalizes_added_locations(mocker):
+    mocker.patch('tofipa._config.LocationsFile._read', return_value=['initial/path'])
+    mocker.patch('tofipa._config.LocationsFile._parse_line',
+                 side_effect=lambda l, f, n: (f'parsed:{l}:{f}:{n}',))
+
+    filepath = 'mock/locations/file'
+    locations = _config.LocationsFile(filepath)
+    assert locations == ['initial/path']
+
+    locations.append('appended/path')
+    assert locations == ['initial/path', 'parsed:appended/path:None:None']
+
+    locations.insert(1, 'inserted/path')
+    assert locations == ['initial/path', 'parsed:inserted/path:None:None', 'parsed:appended/path:None:None']
+
+    del locations[0]
+    assert locations == ['parsed:inserted/path:None:None', 'parsed:appended/path:None:None']
+
+    locations.extend(('some', 'more', 'paths'))
+    assert locations == ['parsed:inserted/path:None:None', 'parsed:appended/path:None:None',
+                         'parsed:some:None:None', 'parsed:more:None:None', 'parsed:paths:None:None']
+
+    locations[1] = 'assigned/path'
+    assert list(locations) == ['parsed:inserted/path:None:None', 'parsed:assigned/path:None:None',
+                               'parsed:some:None:None', 'parsed:more:None:None', 'parsed:paths:None:None']
+
+    locations[1:3] = ('multiple', 'assigned', 'paths')
+    assert locations == ['parsed:inserted/path:None:None',
+                         'parsed:multiple:None:None', 'parsed:assigned:None:None', 'parsed:paths:None:None',
+                         'parsed:more:None:None', 'parsed:paths:None:None']
