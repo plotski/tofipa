@@ -11,7 +11,7 @@ DEFAULT_LOCATIONS_FILEPATH = os.path.join(xdg_config_home, __project_name__, 'lo
 DEFAULT_CLIENTS_FILEPATH = os.path.join(xdg_config_home, __project_name__, 'clients')
 
 
-class LocationsFile(collections.abc.MutableSequence):
+class Locations(collections.abc.MutableSequence):
     """
     :class:`list` subclass that reads directory paths from `filepath`
 
