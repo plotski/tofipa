@@ -117,6 +117,8 @@ class LocationsFile(collections.abc.MutableSequence):
         return path
 
     def __setitem__(self, index, value):
+        # `index` can be int or slice and `value` can be one path or list of
+        # paths.
         if not isinstance(value, str) and isinstance(value, collections.abc.Iterable):
             normalized_paths = []
             for item in value:
@@ -128,15 +130,9 @@ class LocationsFile(collections.abc.MutableSequence):
             self._list[index] = normalized_paths[0]
 
     def insert(self, index, value):
-        if not isinstance(value, str) and isinstance(value, collections.abc.Iterable):
-            normalized_paths = []
-            for item in value:
-                for normalized_path in self._normalize(item, None, None):
-                    normalized_paths.append(normalized_path)
-            self._list[index:index] = normalized_paths
-        else:
-            normalized_paths = self._normalize(value, None, None)
-            self._list.insert(index, normalized_paths[0])
+        # The only valid type for `index` should be int.
+        normalized_paths = self._normalize(value, None, None)
+        self._list.insert(index, normalized_paths[0])
 
     def __getitem__(self, index):
         return self._list[index]
