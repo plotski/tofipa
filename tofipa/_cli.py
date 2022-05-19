@@ -64,7 +64,7 @@ def cli(args=None):
 
     # Read locations file
     try:
-        locations = _config.Locations(args.locations_file)
+        locations = _config.Locations(filepath=args.locations_file)
     except _errors.ConfigError as e:
         _fatal_error(e)
     else:

@@ -22,9 +22,13 @@ class Locations(collections.abc.MutableSequence):
         path
     """
 
-    def __init__(self, filepath):
+    def __init__(self, *locations, filepath):
         self._filepath = filepath
-        self._list = self._read(filepath)
+        self._list = []
+        # self.extend() should normalize `locations`. _read() does that on its
+        # own and provides the proper filepath and line_number to ConfigError.
+        self.extend(locations)
+        self._list.extend(self._read(filepath))
 
     @property
     def filepath(self):
