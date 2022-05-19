@@ -229,3 +229,20 @@ def test_LocationsFile_normalizes_added_locations(mocker):
     assert locations == ['normalized:inserted/path:None:None',
                          'normalized:multiple:None:None', 'normalized:assigned:None:None', 'normalized:paths:None:None',
                          'normalized:more:None:None', 'normalized:paths:None:None']
+
+
+def test_LocationsFile_equality(mocker):
+    mocker.patch('tofipa._config.LocationsFile._read', return_value=['initial/path'])
+
+    filepath = 'mock/locations/file'
+    locations = _config.LocationsFile(filepath)
+
+    locations._list = ['a', 'b', 'c']
+    assert locations == ['a', 'b', 'c']
+    assert locations != ['a', 'c', 'b']
+
+    locations._list = ['a', 'b', 'c']
+    assert locations == ('a', 'b', 'c')
+    assert locations != ('a', 'b', 'C')
+
+    assert locations != 123
