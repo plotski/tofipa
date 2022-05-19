@@ -15,9 +15,16 @@ def _parse_args(args):
         help='Path to torrent file',
     )
     argparser.add_argument(
-        'LOCATION',
-        nargs='*',
-        help='Potential path of existing files in TORRENT',
+        '--location', '-l',
+        # TODO: Always use "extend" when Python 3.7 is no longer supported.
+        #       https://docs.python.org/3/library/argparse.html#action
+        action='extend' if sys.version_info >= (3, 8, 0) else 'append',
+        nargs='+' if sys.version_info >= (3, 8, 0) else None,
+        default=[],
+        help=(
+            'Potential download location of existing files in TORRENT '
+            '(may be given multiple times)'
+        ),
     )
     argparser.add_argument(
         '--locations-file', '--lf',
@@ -61,6 +68,8 @@ def cli(args=None):
     except _errors.ConfigError as e:
         _fatal_error(e)
     else:
+        # Prepend arguments from --location to locations from config file
+        locations[0:0] = args.location
         if not locations:
             _fatal_error(f'No locations specified. See: {__project_name__} --help')
 

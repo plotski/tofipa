@@ -32,7 +32,7 @@ script like this:
     )
 
     # The "${NAME[@]}" syntax quotes/escapes array items if necessary
-    download_directory="$(tofipa --debug-file /tmp/tofipa.log "$torrent_file" "${download_directories[@]}")"
+    download_directory="$(tofipa --debug-file /tmp/tofipa.log "$torrent_file" -l "${download_directories[@]}")"
 
     # Failsafe to catch bugs
     if [ -z "$download_directory" ]; then
