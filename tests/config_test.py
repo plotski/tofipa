@@ -14,7 +14,7 @@ def test_LocationsFile_filepath(mocker):
 
 
 def test_LocationsFile_repr(mocker):
-    mocker.patch('tofipa._config.LocationsFile._read')
+    mocker.patch('tofipa._config.LocationsFile._read', return_value=['/the/usual/path'])
 
     locations = _config.LocationsFile('path/to/locations')
     locations.extend(('/a/path', 'also/this/path'))
@@ -22,7 +22,7 @@ def test_LocationsFile_repr(mocker):
     assert repr(locations) == (
         "<LocationsFile"
         " 'path/to/locations'"
-        " ['/a/path', 'also/this/path']"
+        " ['/the/usual/path', '/a/path', 'also/this/path']"
         ">"
     )
 
