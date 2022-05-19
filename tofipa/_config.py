@@ -41,7 +41,7 @@ class LocationsFile(collections.abc.MutableSequence):
                 for line_number, line in enumerate(f.readlines(), start=1):
                     line = line.strip()
                     if line and not line.startswith('#'):
-                        locations.extend(self._parse_line(line, filepath, line_number))
+                        locations.extend(self._normalize(line, filepath, line_number))
         except OSError as e:
             # Ignore missing default config file path
             if e.errno == errno.ENOENT and filepath == DEFAULT_LOCATIONS_FILEPATH:
@@ -52,7 +52,8 @@ class LocationsFile(collections.abc.MutableSequence):
 
         return locations
 
-    def _parse_line(self, line, filepath, line_number):
+    @classmethod
+    def _normalize(cls, line, filepath, line_number):
         subdirs = []
 
         if line.endswith(f'{os.sep}*'):
@@ -78,7 +79,7 @@ class LocationsFile(collections.abc.MutableSequence):
 
         # Resolve environment variables
         subdirs = [
-            self._resolve_env_vars(subdir, filepath, line_number)
+            cls._resolve_env_vars(subdir, filepath, line_number)
             for subdir in subdirs
         ]
 
@@ -90,14 +91,15 @@ class LocationsFile(collections.abc.MutableSequence):
 
         return sorted(subdirs)
 
-    def _resolve_env_vars(self, string, filepath, line_number):
+    @classmethod
+    def _resolve_env_vars(cls, line, filepath, line_number):
         # Resolve "~/foo" and "~user/foo"
-        string = os.path.expanduser(string)
+        path = os.path.expanduser(line)
 
         while True:
             # Find valid variable name
             # https://stackoverflow.com/a/2821201
-            match = re.search(r'\$([a-zA-Z_]+[a-zA-Z0-9_]*)', string)
+            match = re.search(r'\$([a-zA-Z_]+[a-zA-Z0-9_]*)', path)
             if not match:
                 break
             else:
@@ -110,30 +112,30 @@ class LocationsFile(collections.abc.MutableSequence):
                     raise _errors.ConfigError(f'Empty environment variable: ${env_var_name}',
                                               filepath=filepath, line_number=line_number)
                 else:
-                    string = string.replace(f'${env_var_name}', env_var_value)
+                    path = path.replace(f'${env_var_name}', env_var_value)
 
-        return string
+        return path
 
     def __setitem__(self, index, value):
         if not isinstance(value, str) and isinstance(value, collections.abc.Iterable):
             normalized_paths = []
             for item in value:
-                for normalized_path in self._parse_line(item, None, None):
+                for normalized_path in self._normalize(item, None, None):
                     normalized_paths.append(normalized_path)
             self._list[index] = normalized_paths
         else:
-            normalized_paths = self._parse_line(value, None, None)[0]
-            self._list[index] = normalized_paths
+            normalized_paths = self._normalize(value, None, None)
+            self._list[index] = normalized_paths[0]
 
     def insert(self, index, value):
         if not isinstance(value, str) and isinstance(value, collections.abc.Iterable):
             normalized_paths = []
             for item in value:
-                for normalized_path in self._parse_line(item, None, None):
+                for normalized_path in self._normalize(item, None, None):
                     normalized_paths.append(normalized_path)
             self._list[index:index] = normalized_paths
         else:
-            normalized_paths = self._parse_line(value, None, None)
+            normalized_paths = self._normalize(value, None, None)
             self._list.insert(index, normalized_paths[0])
 
     def __getitem__(self, index):

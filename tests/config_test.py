@@ -28,8 +28,8 @@ def test_LocationsFile_repr(mocker):
 
 
 def test_LocationsFile_read_reads_filepath(tmp_path, mocker):
-    mocker.patch('tofipa._config.LocationsFile._parse_line',
-                 side_effect=lambda line, fp, ln: (f'parsed {fp}@{ln}: {line}',))
+    mocker.patch('tofipa._config.LocationsFile._normalize',
+                 side_effect=lambda line, fp, ln: (f'normalized {fp}@{ln}: {line}',))
 
     filepath = tmp_path / 'locations'
     filepath.write_text('''
@@ -42,14 +42,14 @@ def test_LocationsFile_read_reads_filepath(tmp_path, mocker):
     '''.strip())  # noqa: W291 trailing whitespace
     locations = _config.LocationsFile(filepath)
     assert locations == [
-        f'parsed {filepath}@2: /path/one',
-        f'parsed {filepath}@3: /path/two',
-        f'parsed {filepath}@6: path/t h r e e',
+        f'normalized {filepath}@2: /path/one',
+        f'normalized {filepath}@3: /path/two',
+        f'normalized {filepath}@6: path/t h r e e',
     ]
 
 
 def test_LocationsFile_read_handles_nonexisting_default_file(mocker):
-    mocker.patch('tofipa._config.LocationsFile._parse_line', side_effect=lambda line, fp, ln: ('irrelevant',))
+    mocker.patch('tofipa._config.LocationsFile._normalize', side_effect=lambda line, fp, ln: ('irrelevant',))
     mocker.patch('tofipa._config.DEFAULT_LOCATIONS_FILEPATH', 'mock/default/locations/file')
     filepath = _config.DEFAULT_LOCATIONS_FILEPATH
     locations = _config.LocationsFile(filepath)
@@ -57,14 +57,14 @@ def test_LocationsFile_read_handles_nonexisting_default_file(mocker):
 
 
 def test_LocationsFile_read_handles_nonexisting_custom_file(mocker):
-    mocker.patch('tofipa._config.LocationsFile._parse_line', side_effect=lambda line, fp, ln: ('irrelevant',))
+    mocker.patch('tofipa._config.LocationsFile._normalize', side_effect=lambda line, fp, ln: ('irrelevant',))
     filepath = 'mock/custom/locations/file'
     assert filepath != _config.DEFAULT_LOCATIONS_FILEPATH
     with pytest.raises(_errors.ConfigError, match=rf'^Failed to read {filepath}: No such file or directory$'):
         _config.LocationsFile(filepath)
 
 
-def test_LocationsFile_parse_line_expands_subdirectories(mocker, tmp_path):
+def test_LocationsFile_normalize_expands_subdirectories(mocker, tmp_path):
     parent_directory = tmp_path / 'parent'
     parent_directory.mkdir()
     (parent_directory / 'subdir1').mkdir()
@@ -77,7 +77,7 @@ def test_LocationsFile_parse_line_expands_subdirectories(mocker, tmp_path):
     filepath = 'mock/locations/file'
     locations = _config.LocationsFile(filepath)
 
-    return_value = locations._parse_line(f'{parent_directory}{os.sep}*', filepath, 123)
+    return_value = locations._normalize(f'{parent_directory}{os.sep}*', filepath, 123)
     assert return_value == [
         str(parent_directory / 'subdir1'),
         str(parent_directory / 'subdir2'),
@@ -85,7 +85,7 @@ def test_LocationsFile_parse_line_expands_subdirectories(mocker, tmp_path):
     ]
 
 
-def test_LocationsFile_parse_line_handles_exception_from_subdirectories_expansion(mocker, tmp_path):
+def test_LocationsFile_normalize_handles_exception_from_subdirectories_expansion(mocker, tmp_path):
     parent_directory = tmp_path / 'parent'
     parent_directory.mkdir()
     (parent_directory / 'subdir1').mkdir()
@@ -102,13 +102,13 @@ def test_LocationsFile_parse_line_handles_exception_from_subdirectories_expansio
     try:
         with pytest.raises(_errors.ConfigError, match=(rf'{filepath}@123: Failed to read subdirectories '
                                                        rf'from {parent_directory}: Permission denied')):
-            locations._parse_line(f'{parent_directory}{os.sep}*', filepath, 123)
+            locations._normalize(f'{parent_directory}{os.sep}*', filepath, 123)
     finally:
         parent_directory.chmod(0o700)
 
 
 @pytest.mark.parametrize('with_subdir_expansion', (True, False), ids=('with subdir expansion', 'without subdir expansion'))
-def test_LocationsFile_parse_line_resolves_environment_variables(with_subdir_expansion, mocker):
+def test_LocationsFile_normalize_resolves_environment_variables(with_subdir_expansion, mocker):
     mocker.patch('tofipa._config.LocationsFile._read')
     mocker.patch('tofipa._config.LocationsFile._resolve_env_vars',
                  side_effect=lambda string, fp, ln: f'resolved {fp}@{ln}: {string}')
@@ -118,21 +118,21 @@ def test_LocationsFile_parse_line_resolves_environment_variables(with_subdir_exp
 
     if with_subdir_expansion:
         mocker.patch('os.listdir', return_value=('a', 'b', 'c'))
-        return_value = locations._parse_line(f'mock line{os.sep}*', filepath, 123)
+        return_value = locations._normalize(f'mock line{os.sep}*', filepath, 123)
         assert return_value == [
             f'resolved {filepath}@123: mock line{os.sep}a',
             f'resolved {filepath}@123: mock line{os.sep}b',
             f'resolved {filepath}@123: mock line{os.sep}c',
         ]
     else:
-        return_value = locations._parse_line('mock line', filepath, 123)
+        return_value = locations._normalize('mock line', filepath, 123)
         assert return_value == [
             f'resolved {filepath}@123: mock line',
         ]
 
 
 @pytest.mark.parametrize('with_subdir_expansion', (True, False), ids=('with subdir expansion', 'without subdir expansion'))
-def test_LocationsFile_parse_line_handles_subdir_being_file(with_subdir_expansion, mocker, tmp_path):
+def test_LocationsFile_normalize_handles_subdir_being_file(with_subdir_expansion, mocker, tmp_path):
     mocker.patch('tofipa._config.LocationsFile._read')
 
     filepath = 'mock/locations/file'
@@ -144,13 +144,13 @@ def test_LocationsFile_parse_line_handles_subdir_being_file(with_subdir_expansio
         (parent / 'a').write_text('i am a file')
         (parent / 'b').write_text('i am b file')
         (parent / 'c').write_text('i am c file')
-        return_value = locations._parse_line(f'{parent}{os.sep}*', filepath, 123)
+        return_value = locations._normalize(f'{parent}{os.sep}*', filepath, 123)
         assert return_value == []
     else:
         line = tmp_path / 'a file'
         line.write_text('i am a file')
         with pytest.raises(_errors.ConfigError, match=rf'^{filepath}@123: Not a directory: {line}$'):
-            locations._parse_line(str(line), filepath, 123)
+            locations._normalize(str(line), filepath, 123)
 
 
 def test_LocationsFile_resolve_env_vars_resolves_tilde(mocker):
@@ -201,31 +201,31 @@ def test_LocationsFile_resolve_env_vars_handles_empty_environment_variable(mocke
 
 def test_LocationsFile_normalizes_added_locations(mocker):
     mocker.patch('tofipa._config.LocationsFile._read', return_value=['initial/path'])
-    mocker.patch('tofipa._config.LocationsFile._parse_line',
-                 side_effect=lambda l, f, n: (f'parsed:{l}:{f}:{n}',))
+    mocker.patch('tofipa._config.LocationsFile._normalize',
+                 side_effect=lambda l, f, n: (f'normalized:{l}:{f}:{n}',))
 
     filepath = 'mock/locations/file'
     locations = _config.LocationsFile(filepath)
     assert locations == ['initial/path']
 
     locations.append('appended/path')
-    assert locations == ['initial/path', 'parsed:appended/path:None:None']
+    assert locations == ['initial/path', 'normalized:appended/path:None:None']
 
     locations.insert(1, 'inserted/path')
-    assert locations == ['initial/path', 'parsed:inserted/path:None:None', 'parsed:appended/path:None:None']
+    assert locations == ['initial/path', 'normalized:inserted/path:None:None', 'normalized:appended/path:None:None']
 
     del locations[0]
-    assert locations == ['parsed:inserted/path:None:None', 'parsed:appended/path:None:None']
+    assert locations == ['normalized:inserted/path:None:None', 'normalized:appended/path:None:None']
 
     locations.extend(('some', 'more', 'paths'))
-    assert locations == ['parsed:inserted/path:None:None', 'parsed:appended/path:None:None',
-                         'parsed:some:None:None', 'parsed:more:None:None', 'parsed:paths:None:None']
+    assert locations == ['normalized:inserted/path:None:None', 'normalized:appended/path:None:None',
+                         'normalized:some:None:None', 'normalized:more:None:None', 'normalized:paths:None:None']
 
     locations[1] = 'assigned/path'
-    assert list(locations) == ['parsed:inserted/path:None:None', 'parsed:assigned/path:None:None',
-                               'parsed:some:None:None', 'parsed:more:None:None', 'parsed:paths:None:None']
+    assert list(locations) == ['normalized:inserted/path:None:None', 'normalized:assigned/path:None:None',
+                               'normalized:some:None:None', 'normalized:more:None:None', 'normalized:paths:None:None']
 
     locations[1:3] = ('multiple', 'assigned', 'paths')
-    assert locations == ['parsed:inserted/path:None:None',
-                         'parsed:multiple:None:None', 'parsed:assigned:None:None', 'parsed:paths:None:None',
-                         'parsed:more:None:None', 'parsed:paths:None:None']
+    assert locations == ['normalized:inserted/path:None:None',
+                         'normalized:multiple:None:None', 'normalized:assigned:None:None', 'normalized:paths:None:None',
+                         'normalized:more:None:None', 'normalized:paths:None:None']
