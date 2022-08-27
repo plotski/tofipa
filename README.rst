@@ -1,1 +1,1 @@
-The project was moved: https://codeberg.org/ormaybe/tofipa
+The project was moved: https://codeberg.org/plotski/tofipa
